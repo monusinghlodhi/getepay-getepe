@@ -1,0 +1,24 @@
+<div class='getepay'>
+	<div class='errors'>
+		<?php if($this->getMessages()): ?>
+			<?php foreach($this->getMessages() as $message): ?>
+				<div class='alert alert-danger'><p style='color:red'><?= $message ?></p></div>
+			<?php endforeach; ?>
+			<?php if($this->getShowPhoneBox()): ?>
+				<form method='post'>
+					<label>Telephone</label><input type='text' name='telephone' value='<?php echo $this->getTelephone() ?>' />
+					<div><input type='submit' class='btn btn-primary' value='UPDATE TELEPHONE'></div>
+				</form>
+			<?php endif; ?>
+		<?php else: ?>
+			<div style="width:200px;margin:auto;margin-top:20px">
+			<img style="width:100%" src="<?php echo $block->getViewFileUrl('Getepay_Getepe::images/spinner.gif'); ?>">
+			<center>Redirecting you to Getepay</center>
+			</div>
+			<script>
+			window.location.href = '<?= $this->getAction() ?>';
+			</script>
+		<?php endif; ?>
+	</div>
+	
+</div>

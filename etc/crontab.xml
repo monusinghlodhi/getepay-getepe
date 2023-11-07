@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
+    <group id="getepay">
+        <job name="getepay_cancel_pending_orders" instance="Getepay\Getepe\Cron\CancelPendingOrders" method="execute">
+            <schedule>*/5 * * * *</schedule>
+        </job>
+        <job name="getepay_update_order_to_processing" instance="Getepay\Getepe\Cron\UpdateOrdersToProcessing" method="execute">
+            <schedule>*/5 * * * *</schedule>
+        </job>
+        <job name="getepay_update_order_to_processing_v1" instance="Getepay\Getepe\Cron\UpdateOrdersToProcessingV1" method="execute">
+            <schedule>*/5 * * * *</schedule>
+        </job>
+     </group>
+</config>

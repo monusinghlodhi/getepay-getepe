@@ -1,0 +1,47 @@
+{
+  "name": "getepay/getepe",
+  "description": "GetePay Magento 2 plugin for accepting payments.",
+  "version": "2.0.0",
+  "require": {
+      "php": "7.*|~8.0.0|~8.1.0|~8.2.0|~8.2.4",
+      "getepay/getepay": "2.*"
+  },
+  "keywords": [
+      "getepay",
+      "magento",
+      "magento 2",
+      "plugin",
+      "extension",
+      "payments",
+      "india",
+      "payment gateway",
+      "wallets",
+      "netbanking"
+  ],
+  "authors": [
+      {
+          "name": "Team Getepay",
+          "homepage": "https://getepay.in",
+          "role": "Developer"
+      }
+  ],
+  "support": {
+      "source": "https://github.com/monusinghlodhi/getepay-getepe",
+      "issues": "https://github.com/monusinghlodhi/getepay-getepe/issues",
+      "rss": "https://github.com/monusinghlodhi/getepay-getepe/releases.atom",
+      "docs":
+          "https://github.com/monusinghlodhi/getepay-getepe"
+  },
+  "homepage": "https://getapay.in",
+  "suggest": {
+      "magento/module-checkout-agreements": "100.0.*"
+  },
+  "type": "magento2-module",
+  "license": ["MIT"],
+  "autoload": {
+      "files": ["registration.php"],
+      "psr-4": {
+          "Getepay\\Getepe\\": ""
+      }
+  }
+}
