@@ -50,10 +50,10 @@ panel (System -> Cache Management).
 Setup cron with Magento to execute Getepay cronjobs for following actions:
 
 #### Cancel pending orders
-It will cancel order created by Getepay as per timeout saved in configuration if `Pending Orders Cron` is Enabled enabled.
+It will cancel order created by Getepay as per timeout saved in configuration if `Pending Orders Cron` is Enabled.
 
 #### Update order to processing
-Check response from Getepay for events `pending` payments after order and updates pending order to processing if `Enable Update Order Cron V1` is Enabled enabled.
+Check response from Getepay for events `pending` payments after order and updates pending order to processing if `Enable Update Order Cron V1` is Enabled.
 
 #### Magento cron can be installed using following command:
 ```bash
