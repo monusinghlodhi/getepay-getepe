@@ -7,38 +7,54 @@
                 <field id="active" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="0">
                     <label>Enabled</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+					<comment>Select "Yes" to Enable your GetePay Plugin</comment>
                 </field>
                 <field id="title" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Title</label>
+					<comment>Type the "Title" you wish Users to see when selecting GetePay as their Payment Method</comment>
                 </field>
                 <field id="req_url" translate="label" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Request Url</label>
+					<comment>Type the "Getepay Request URL" allocated to you by Getepay</comment>
                     <!-- <can_be_empty>1</can_be_empty> -->
                 </field>
                 <field id="pmt_chk_url" translate="label" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Payment Re-Query Url</label>
+					<comment>Type "Payment Re-query Url" allocated to you by GetePay</comment>
                 </field>
                 <field id="getepay_mid" translate="label" type="text" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>GetePay MID</label>
+					<comment>Type the "Getepay MID" allocated to you by Getepay</comment>
                 </field>
                 <field id="terminalId" translate="label" type="text" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Terminal Id</label>
+					<comment>Type the "Terminal ID" allocated to you by Getepay</comment>
                 </field>
                 <field id="getepay_key" translate="label" type="text" sortOrder="80" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Getepay Key</label>
+					<comment>Type the "Getepay Key" allocated to you by Getepay</comment>
                 </field>
                 <field id="getepay_iv" translate="label" type="text" sortOrder="90" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>GetePay IV</label>
+					<comment>Type the "Getepay IV" allocated to you by GetePay</comment>
                 </field>
                 <field id="order_email" translate="label" type="select" sortOrder="100" showInDefault="1" showInWebsite="1" showInStore="0">
-                    <label>Send Order Email</label>
+                    <label>Send Order Email?</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <comment>Select "Yes" to Notify Users when successful order is created</comment>
                 </field>
+                <field id="create_invoice_after_order" translate="label" type="select" sortOrder="105" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Create Invoice?</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Select "Yes" to Capture invoice when order is successful</comment>
+                </field>
                 <field id="invoice_email" translate="label" type="select" sortOrder="110" showInDefault="1" showInWebsite="1" showInStore="0">
-                    <label>Send Invoice Email</label>
+                    <label>Send Invoice Email?</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <comment>Select "Yes" to Notify Users when successful invoice is created</comment>
+                    <depends>
+                        <field id="create_invoice_after_order">1</field>
+                    </depends>
                 </field>
                 <!-- <field id="enable_webhook" translate="label" type="select" sortOrder="120" showInDefault="0" showInWebsite="0" showInStore="0">
                     <label>Webhook Enabled</label>
@@ -53,6 +69,7 @@
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <frontend_model>Getepay\Getepe\Model\EnablePendingOrdersCron</frontend_model>
                     <config_path>payment/getepay/enable_pending_orders_cron</config_path>
+					<comment>Select "Yes" to Enable cron for moving pending orders to Cancel status after below timeout.</comment>
                 </field>
 
                 <field id="pending_orders_timeout" translate="label" type="text" sortOrder="140" showInDefault="1" showInWebsite="0" showInStore="0">
@@ -88,6 +105,7 @@
                     <label>Enable Update Order Cron V1</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <config_path>payment/getepay/enable_update_order_cron_v1</config_path>
+					<comment>Select "Yes" to Enable cron for moving pending status orders to Processing or Cancel status after payment success but order status is pending</comment>
                 </field>
                 <!--                
                 <field id="getepay_testmode" translate="label" type="select" sortOrder="160" showInDefault="1" showInWebsite="1" showInStore="0">

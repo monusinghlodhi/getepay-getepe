@@ -71,22 +71,6 @@ class Main extends  \Magento\Framework\View\Element\Template
 				$billing->setTelephone($updateTelephone)->save();
 				
 			}
-			$payment = $order->getPayment();
-			
-			$payment->setTransactionId("-1");
-			  $payment->setAdditionalInformation(  
-				[\Magento\Sales\Model\Order\Payment\Transaction::RAW_DETAILS => array("Transaction is yet to complete")]
-			);
-			$trn = $payment->addTransaction(\Magento\Sales\Model\Order\Payment\Transaction::TYPE_CAPTURE,null,true);
-			$trn->setIsClosed(0)->save();
-			 $payment->addTransactionCommentsToOrder(
-                $trn,
-               "The transaction is yet to complete."
-            );
-
-            $payment->setParentTransactionId(null);
-            $payment->save();
-            $order->save();
  
 			//var_dump($trn);exit;
 			//try{
@@ -103,7 +87,8 @@ class Main extends  \Magento\Framework\View\Element\Template
 				$phone = $billing->getTelephone();
 				$email = $billing->getEmail();
 				$name = $billing->getFirstname() ." ". $billing->getLastname();
-				$amount = round((int)$order->getGrandTotal(),2);
+				// $amount = round((int)$order->getGrandTotal(),2);
+				$amount = $order->getGrandTotal();
 				$currency = "INR";
 				$redirect_url = $this->urlBuilder->getUrl('getepay/response', ['_secure' => true]);
 				//$this->logger->info("Date sent for creating order ".print_r($api_data,true));
@@ -200,8 +185,24 @@ class Main extends  \Magento\Framework\View\Element\Template
 				//echo "<pre/>"; print_r($json);
 				$paymentId = $json->paymentId;
 
+				$payment = $order->getPayment();
+			
+				$payment->setTransactionId("-1");
+				$payment->setAdditionalInformation(  
+					[\Magento\Sales\Model\Order\Payment\Transaction::RAW_DETAILS => array("Transaction is yet to complete")]
+				);
+				$trn = $payment->addTransaction(\Magento\Sales\Model\Order\Payment\Transaction::TYPE_CAPTURE,null,true);
+				$trn->setIsClosed(0)->save();
+				$payment->addTransactionCommentsToOrder(
+					$trn,
+				"The User was Redirected to Getepay for Payment."
+				);
+
+				$payment->setParentTransactionId($paymentId);
+
 				// Save Getepay Payment ID to the order
 				$order->setGetepayPaymentId($paymentId);
+				$payment->save();
 				$order->save();
 
 				$pgUrl = $json->paymentUrl;

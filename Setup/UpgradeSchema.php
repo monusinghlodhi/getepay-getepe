@@ -54,6 +54,18 @@ class UpgradeSchema implements UpgradeSchemaInterface
                         'comment'  => 'Getepay Payment ID'
                     ]
                 );
+            }
+            if (!$setup->getConnection()->tableColumnExists($tableName, 'getepay_payment_status')) {
+                $setup->getConnection()->addColumn(
+                    $tableName,
+                    'getepay_payment_status',
+                    [
+                        'nullable' => true,
+                        'type'     => \Magento\Framework\DB\Ddl\Table::TYPE_TEXT,
+                        'length'   => 255,
+                        'comment'  => 'Getepay Payment Status'
+                    ]
+                );
             }   
         }
 
