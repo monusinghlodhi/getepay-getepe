@@ -18,10 +18,10 @@
                 <enable_reset_cart_cron>0</enable_reset_cart_cron>
                 <reset_cart_orders_timeout>30</reset_cart_orders_timeout>
                 <enable_update_order_cron_v1>1</enable_update_order_cron_v1>
-                <!-- <enable_webhook>1</enable_webhook>
+                <enable_webhook>1</enable_webhook>
                 <webhook_events>order.paid,payment.authorized</webhook_events>
                 <supported_webhook_events>order.paid,payment.authorized</supported_webhook_events>
-                <webhook_triggered_at>0</webhook_triggered_at> -->
+                <webhook_triggered_at>0</webhook_triggered_at>
 			</getepay>          
         </payment>
     </default>

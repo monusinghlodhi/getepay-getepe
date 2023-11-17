@@ -269,7 +269,7 @@ class Index extends Action implements CsrfAwareActionInterface
                     $transaction->setAdditionalInformation("status", "successful");
                     $transaction->setIsClosed(1);
                     $transaction->save();
-                    $payment->addTransactionCommentsToOrder($transaction, "The transaction is failed");
+                    //$payment->addTransactionCommentsToOrder($transaction, "The transaction is failed");
 
                     try {
                         $items = $order->getItemsCollection();
@@ -281,12 +281,18 @@ class Index extends Action implements CsrfAwareActionInterface
                         $message = $e->getMessage();
                         $this->logger->info("Not able to add Items to cart Exception Message" . $message);
                     }
-                    //$order->cancel();
-                    $order->setState("canceled")->setStatus("canceled");
-                    $payment->setParentTransactionId(null);
-                    $payment->save();
+
+                     // Send notification to the customer
+                     $order->addStatusHistoryComment(
+                        __('Transaction is failed with GetePay Transaction ID: "%1"', $getepayTxnId),
+                        Order::STATE_CANCELED
+                    )->setIsCustomerNotified(true)->save();
+
+                    // Set order status to "canceled"
+                    $order->setState(Order::STATE_CANCELED)->setStatus(Order::STATE_CANCELED);
                     $order->save();
-                    $this->logger->info("Payment for $getepayTxnId failed.");
+                    $payment->setParentTransactionId($getepayTxnId);
+                    $payment->save();
 
                     // Check if the order exists and the customer ID is set
                     if ($order->getId() && $order->getCustomerId()) {
@@ -299,7 +305,6 @@ class Index extends Action implements CsrfAwareActionInterface
                         if ($customerModel->getId()) {
                             $customerSession->setCustomerAsLoggedIn($customerModel);
                             $customerSession->regenerateId();
-                            //echo 'Login';
                         }
                     }                    
                     $this->_checkoutSession->setLastQuoteId($order->getQuoteId());
@@ -308,7 +313,6 @@ class Index extends Action implements CsrfAwareActionInterface
                     $this->_checkoutSession->setLastRealOrderId($order->getIncrementId());
                     $this->_checkoutSession->setLastOrderStatus($order->getStatus());
 
-                   // return $this->resultRedirectFactory->create()->setPath('checkout/cart', ['_secure' => true]);
                     $this->messageManager->addErrorMessage(__('Payment failed. Please try again.'));
                     return $this->resultRedirectFactory->create()->setPath('checkout/onepage/failure', ['_secure' => true]);
 					

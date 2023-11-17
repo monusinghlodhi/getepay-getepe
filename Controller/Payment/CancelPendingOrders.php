@@ -99,9 +99,9 @@ class CancelPendingOrders extends \Getepay\Getepe\Controller\BaseController
         $this->config                          = $config;
         $this->logger                          = $logger;
         $this->isCancelPendingOrderCronEnabled = $this->config->isCancelPendingOrderCronEnabled();
-        $this->pendingOrderTimeout             = ($this->config->getPendingOrderTimeout() > 0) ? $this->config->getPendingOrderTimeout() : 30;
+        $this->pendingOrderTimeout             = ($this->config->getPendingOrderTimeout() > 0) ? $this->config->getPendingOrderTimeout() : 2880;
         $this->isCancelResetCartCronEnabled    = $this->config->isCancelResetCartOrderCronEnabled();
-        $this->resetCartOrderTimeout           = ($this->config->getResetCartOrderTimeout() > 0) ? $this->config->getResetCartOrderTimeout() : 30;
+        $this->resetCartOrderTimeout           = ($this->config->getResetCartOrderTimeout() > 0) ? $this->config->getResetCartOrderTimeout() : 2880;
     }
 
     public function execute()
@@ -111,7 +111,8 @@ class CancelPendingOrders extends \Getepay\Getepe\Controller\BaseController
             && $this->pendingOrderTimeout > 0)
         {
             $this->logger->info("Cronjob: Cancel Pending Order Cron started.");
-            echo 'Pending Orders Timeout: '.$dateTimeCheck = date('Y-m-d H:i:s', strtotime('-' . $this->pendingOrderTimeout . ' minutes'));
+           echo 'Pending Orders Timeout: '. date('Y-m-d H:i:s', strtotime('-' . $this->pendingOrderTimeout . ' minutes'));
+            $dateTimeCheck = date('Y-m-d H:i:s', strtotime('-' . $this->pendingOrderTimeout . ' minutes'));
             $sortOrder = $this->sortOrderBuilder->setField('entity_id')->setDirection('DESC')->create();
             $searchCriteria = $this->searchCriteriaBuilder
             ->addFilter(
@@ -131,10 +132,17 @@ class CancelPendingOrders extends \Getepay\Getepe\Controller\BaseController
             )->create();            
 
             $orders = $this->orderRepository->getList($searchCriteria);
-            // foreach ($orders->getItems() as $order) {
-            //     $updated_at = $order->getUpdatedAt();
-            //     echo '<br> Order Update At : ' . $updated_at;
-            // }
+            foreach ($orders->getItems() as $order) {
+                $updated_at = $order->getUpdatedAt();
+                $increment_id = $order->getIncrementId();
+                $payment_metghod = $order->getPayment()->getMethod();
+                echo '<br>======================================================';
+                echo '<br> Order Update At : ' . $updated_at .'<br>';
+                echo '<br> Order Increment ID : ' . $increment_id .'<br>';
+                echo '<br> Payment Method : ' . $payment_metghod .'<br>';
+                echo '======================================================';
+
+            }
             // echo '<pre>';
             // var_dump($orders);
             // exit;

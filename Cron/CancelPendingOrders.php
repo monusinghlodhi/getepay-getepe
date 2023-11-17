@@ -1,7 +1,7 @@
 <?php
 namespace Getepay\Getepe\Cron;
 use \Magento\Sales\Model\Order;
-//callback url : https://monu.magento.com/getepay/payment/cancelpendingorders
+
 class CancelPendingOrders {
     /**
      * @var \Magento\Sales\Api\OrderRepositoryInterface
@@ -176,9 +176,16 @@ class CancelPendingOrders {
                 ->setState(
                     Order::STATE_CANCELED,
                     Order::STATE_CANCELED,
-                    'Payment Failed',
+                    'Order Canceled After Pending Orders Timeout Set in Getepay Module Cron, Order canceled.',
                     false
                 )->save();
+
+                // Add a comment to the order
+                $comment = __('Order Canceled After Pending Orders Timeout Set in Getepay Module Cron, Order canceled.');
+                $order->addStatusHistoryComment($comment)
+                    ->setState(Order::STATE_CANCELED)
+                    ->setStatus(Order::STATE_CANCELED)
+                    ->save();
             }
         }
     }

@@ -16,7 +16,9 @@ class Config
     const KEY_GETEPAY_KEY = 'getepay_key';
     const KEY_GETEPAY_IV = 'getepay_iv';
     const KEY_PMT_CHK_URL = 'pmt_chk_url';
-    
+    const KEY_GETEPAY_ORDER_EMAIL = 'order_email';
+    const KEY_GETEPAY_INVOICE_AFTER_ORDER = 'create_invoice_after_order';
+    const KEY_GETEPAY_INVOICE_EMAIL = 'invoice_email';    
 
     const KEY_MERCHANT_NAME_OVERRIDE = 'merchant_name_override';
     const KEY_PAYMENT_ACTION = 'rzp_payment_action';
@@ -91,6 +93,21 @@ class Config
     public function getGetepayPmtChkUrl()
     {
         return $this->getConfigData(self::KEY_PMT_CHK_URL);
+    }
+
+    public function isGetepayOrderEmailEnabled()
+    {
+        return (bool) (int) $this->getConfigData(self::KEY_GETEPAY_ORDER_EMAIL, $this->storeId);
+    }
+
+    public function isGetepayInvoiceAfterOrderEnabled()
+    {
+        return (bool) (int) $this->getConfigData(self::KEY_GETEPAY_INVOICE_AFTER_ORDER, $this->storeId);
+    }
+
+    public function isGetepayInvoiceEmailAfterOrderEnabled()
+    {
+        return (bool) (int) $this->getConfigData(self::KEY_GETEPAY_INVOICE_EMAIL, $this->storeId);
     }
     
     public function isCancelPendingOrderCronEnabled()

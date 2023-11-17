@@ -7,6 +7,8 @@ use Magento\Sales\Model\Order\Payment\State\AuthorizeCommand;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Model\Order\Invoice;
+use Magento\Framework\DB\Transaction;
 //use Getepay\Getepe\Model\PaymentMethod;
 use Getepay\Getepe\Constants\OrderCronStatus;
 use Magento\Framework\App\ResourceConnection;
@@ -18,19 +20,30 @@ use Magento\Framework\App\ResourceConnection;
  */
 class Callback extends \Getepay\Getepe\Controller\BaseController
 {
-    /**
-     * @var \Magento\Sales\Model\Service\InvoiceService
-     */
-    protected $_invoiceService;
-    protected $orderSender;
     protected $_orderFactory;
     protected $resourceConnection;
     protected $transactionRepository;
     protected $isUpdateOrderCronV1Enabled;
+
     /**
      * @var \Magento\Framework\DB\Transaction
      */
-    protected $_transaction;
+    private Transaction $transactionModel;
+    
+    /**
+     * @var OrderSender
+     */
+    protected $OrderSender;
+
+    /**
+     * @var InvoiceSender
+     */
+    protected $invoiceSender;
+
+    /**
+     * @var InvoiceService
+     */
+    protected $invoiceService;
 
     const STATUS_APPROVED = 'APPROVED';
     const STATUS_PROCESSING = 'processing';
@@ -58,11 +71,6 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
     protected $objectManagement;
 
     /**
-     * @var \Magento\Sales\Model\Order\Email\Sender\InvoiceSender
-     */
-    protected $_invoiceSender;
-
-    /**
      * @var \Magento\Catalog\Model\Session
      */
     protected $catalogSession;
@@ -82,8 +90,6 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
      */
     protected $authorizeCommand;
 
-    protected $razorpayOrderID;
-
     /**
      * @param \Magento\Framework\App\Action\Context $context
      * @param \Magento\Customer\Model\Session $customerSession
@@ -91,9 +97,15 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
      * @param \Getepay\Getepe\Model\Config $config
      * @param \Magento\Sales\Model\OrderFactory $orderFactory
      * @param \Psr\Log\LoggerInterface $logger
-     * @param \Magento\Sales\Api\Data\OrderInterface $order
+     * @param OrderRepositoryInterface $orderRepository
+     * @param \Magento\Sales\Model\Service\InvoiceService $invoiceService
+     * @param \Magento\Sales\Model\Order\Email\Sender\OrderSender $OrderSender
+     * @param \Magento\Sales\Model\Order\Email\Sender\InvoiceSender $invoiceSender
      * @param \Magento\Catalog\Model\Session $catalogSession
+     * @param \Magento\Sales\Api\Data\OrderInterface $order
      * @param \Magento\Sales\Api\TransactionRepositoryInterface $transactionRepository
+     * @param Transaction $transactionModel
+     * @param ResourceConnection $resourceConnection
      */
     public function __construct(
         \Magento\Framework\App\Action\Context $context,
@@ -103,13 +115,13 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
         \Magento\Sales\Model\OrderFactory $orderFactory,
         \Psr\Log\LoggerInterface $logger,
         OrderRepositoryInterface $orderRepository,
-        \Magento\Framework\DB\Transaction $transaction,
         \Magento\Sales\Model\Service\InvoiceService $invoiceService,
-        \Magento\Sales\Model\Order\Email\Sender\OrderSender $orderSender,
+        \Magento\Sales\Model\Order\Email\Sender\OrderSender $OrderSender,
         \Magento\Sales\Model\Order\Email\Sender\InvoiceSender $invoiceSender,
         \Magento\Catalog\Model\Session $catalogSession,
         \Magento\Sales\Api\Data\OrderInterface $order,
         \Magento\Sales\Api\TransactionRepositoryInterface $transactionRepository,
+        Transaction $transactionModel,
         ResourceConnection $resourceConnection
 )
     {
@@ -127,18 +139,21 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
         $this->logger           = $logger;
         $this->orderRepository  = $orderRepository;
         $this->objectManagement = \Magento\Framework\App\ObjectManager::getInstance();
-        $this->_transaction     = $transaction;
-        $this->orderSender      = $orderSender;
+        $this->OrderSender      = $OrderSender;
         $this->_orderFactory    = $orderFactory;
-        $this->_invoiceService  = $invoiceService;
-        $this->_invoiceSender   = $invoiceSender;
+        $this->invoiceService   = $invoiceService;
+        $this->invoiceSender    = $invoiceSender;
         $this->catalogSession   = $catalogSession;
         $this->order            = $order;
+        $this->transactionModel = $transactionModel;
         $this->resourceConnection = $resourceConnection;
         $this->transactionRepository = $transactionRepository;
         $this->isUpdateOrderCronV1Enabled = $this->config->isUpdateOrderCronV1Enabled();
+        $this->authorizeCommand = new AuthorizeCommand();
+        $this->captureCommand = new CaptureCommand();
 
-    } 
+    }
+    //callback url : https://monu.magento.com/getepay/payment/callback
     public function execute()
     {
 
@@ -154,7 +169,7 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
         $tableName = $connection->getTableName('sales_order');
         $select = $connection->select()->from(
             $tableName,
-            ['increment_id', 'getepay_payment_id']
+            ['increment_id', 'getepay_payment_id', 'getepay_payment_status']
         )->where(
             'status = ?',
             'pending' // Change 'pending' to the actual status you want to filter by
@@ -166,8 +181,9 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
         // foreach ($result as $row) {
         //     $incrementId = $row['increment_id'];
         //     $getepayPaymentId = $row['getepay_payment_id'];
+        //     $getepay_payment_status = $row['getepay_payment_status'];
         //     // Do something with the $incrementId and $getepayPaymentId, such as printing or processing them.
-        //     echo "Increment ID: $incrementId, Getepay Payment ID: $getepayPaymentId<br>";
+        //     echo "<b>Increment ID:</b> $incrementId, <b>Getepay Payment ID:</b> $getepayPaymentId, <b>Getepay Payment Status:</b> $getepay_payment_status<br>";
         // }
         // exit;
 
@@ -183,8 +199,10 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
         foreach ($result as $row) {
             $incrementId = $row['increment_id'];
             $getepayPaymentId = $row['getepay_payment_id'];
+            $getepay_payment_status = $row['getepay_payment_status'];
+
             // Do something with the $incrementId and $getepayPaymentId, such as printing or processing them.
-            echo "Increment ID: $incrementId, Getepay Payment ID: $getepayPaymentId<br>";
+            echo "Increment ID: $incrementId, Getepay Payment ID: $getepayPaymentId, Getepay Payment Status: $getepay_payment_status<br>";
 
             //GetePay Callback
             $requestt = array(
@@ -219,7 +237,7 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
             $result = curl_exec($curl);
             curl_close($curl);	
             $jsonDecode = json_decode($result);
-            $jsonResult = $jsonDecode->response;	
+            $jsonResult = $jsonDecode->response;
             $ciphertext_raw = hex2bin($jsonResult);
             $original_plaintext = openssl_decrypt($ciphertext_raw, "AES-256-CBC", $key, $options = OPENSSL_RAW_DATA, $iv);
             $json = json_decode($original_plaintext);
@@ -242,6 +260,8 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
             // print_r($json);
             // echo 'Testt';
             // exit;
+
+            $order->setGetepayPaymentStatus($json->txnStatus)->save();
         
             // Update order status
             if($json->txnStatus == "SUCCESS"){
@@ -258,16 +278,69 @@ class Callback extends \Getepay\Getepe\Controller\BaseController
                         $transaction->save();
                     }
 
-                    $payment->addTransactionCommentsToOrder($transaction, "Transaction is completed successfully With GetePay");
-                    $payment->setParentTransactionId(null);
+                    // $payment->addTransactionCommentsToOrder($transaction, "Transaction is completed successfully With GetePay");
+                    // $payment->setParentTransactionId(null);
 
-                    # send new email
-                    $order->setCanSendNewEmailFlag(true);
-                    $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-                    $objectManager->create('Magento\Sales\Model\OrderNotifier')->notify($order);
+                    $payment->setLastTransId($getepayTxnId)
+                            ->setTransactionId($getepayTxnId)
+                            ->setIsTransactionClosed(true)
+                            ->setShouldCloseParentTransaction(true);
+
+                    $payment->setParentTransactionId($payment->getTransactionId());
+
+                        $payment->addTransactionCommentsToOrder(
+                            "$getepayTxnId",
+                            $this->authorizeCommand->execute(
+                                $payment,
+                                $order->getGrandTotal(),
+                                $order
+                            ),
+                            ""
+                        );
+                    # get Client credentials from configurations.
+                    $order_successful_email = $this->config->getConfigData(Config::KEY_GETEPAY_ORDER_EMAIL);
+
+                    if ($order_successful_email != '0') {
+                        $this->OrderSender->send($order);
+                        $order->addStatusHistoryComment(
+                            __('Notified customer about order #%1.', $orderId)
+                        )->setIsCustomerNotified(true)->save();
+                    }
+
+					// # send new email
+					// $order->setCanSendNewEmailFlag(true);
+					// $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+					// $objectManager->create('Magento\Sales\Model\OrderNotifier')->notify($order);
+
+                    // $create_invoice_after_order =  $this->config->getConfigData(Config::KEY_GETEPAY_INVOICE_AFTER_ORDER);
+                    //     if ($create_invoice_after_order != '0') {
+                    //     // Capture invoice when payment is successful
+                    //     $invoice = $this->invoiceService->prepareInvoice($order);
+                    //     $invoice->setRequestedCaptureCase(Invoice::CAPTURE_ONLINE);
+                    //     $invoice->register();
+
+                    //     // Save the invoice to the order
+                    //     $transactionn = $this->transactionModel
+                    //         ->addObject($invoice)
+                    //         ->addObject($invoice->getOrder());
+
+                    //     $transactionn->save();
+
+                    //     // Magento\Sales\Model\Order\Email\Sender\InvoiceSender
+                    //     $send_invoice_email =   $this->config->getConfigData(Config::KEY_GETEPAY_INVOICE_EMAIL);
+
+                    //     if ($send_invoice_email != '0') {
+                    //         $this->invoiceSender->send($invoice);
+                    //         $order->addStatusHistoryComment(
+                    //             __('Notified customer about invoice #%1.', $invoice->getId())
+                    //         )->setIsCustomerNotified(true)->save();
+                    //     }
+                    // }
                     
                     $payment->save();
                     $order->save();
+                    $this->logger->info("Payment for $getepayTxnId was credited.");
+
         
             } 
             elseif( $json->txnStatus == "FAILED" ) {

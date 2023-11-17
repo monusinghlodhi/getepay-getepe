@@ -1,6 +1,6 @@
 <?php
 namespace Getepay\Getepe\Cron;
-//callback url : https://monu.magento.com/getepay/payment/callback
+
 use Getepay\Getepe\Model\Config;
 use Magento\Sales\Model\Order\Payment\State\CaptureCommand;
 use Magento\Sales\Model\Order\Payment\State\AuthorizeCommand;
@@ -11,16 +11,40 @@ use Magento\Sales\Model\OrderFactory;
 //use Getepay\Getepe\Model\PaymentMethod;
 use Getepay\Getepe\Constants\OrderCronStatus;
 use Magento\Framework\App\ResourceConnection;
+use Magento\Sales\Model\Order\Invoice;
+use Magento\Framework\DB\Transaction;
 
 class UpdateOrdersToProcessing {
     
     protected $_orderFactory;
     protected $resourceConnection;
     protected $transactionRepository;
+    protected $isUpdateOrderCronV1Enabled;
+
+    /**
+     * @var \Getepay\Getepe\Model\Config
+     */
+    protected $config;
+    
     /**
      * @var \Magento\Framework\DB\Transaction
      */
-    protected $transaction;
+    private Transaction $transactionModel;
+    
+    /**
+     * @var OrderSender
+     */
+    protected $OrderSender;
+
+    /**
+     * @var InvoiceSender
+     */
+    protected $invoiceSender;
+
+    /**
+     * @var InvoiceService
+     */
+    protected $invoiceService;
 
     /**
      * @var \Magento\Checkout\Model\Session
@@ -36,21 +60,6 @@ class UpdateOrdersToProcessing {
      * @var \Magento\Catalog\Model\Session
      */
     protected $catalogSession;
-
-    /**
-     * @var \Magento\Sales\Model\Service\InvoiceService
-     */
-    protected $invoiceService;
-
-    /**
-     * @var \Magento\Sales\Model\Order\Email\Sender\InvoiceSender
-     */
-    protected $invoiceSender;
-
-    /**
-     * @var \Magento\Sales\Model\Order\Email\Sender\OrderSender
-     */
-    protected $orderSender;
 
     /**
      * @var \Magento\Sales\Api\OrderRepositoryInterface
@@ -108,8 +117,6 @@ class UpdateOrdersToProcessing {
      */
     protected $captureCommand;
 
-    protected $isUpdateOrderCronV1Enabled;
-
     /**
      * CancelOrder constructor.
      * @param \Magento\Framework\App\Action\Context $context
@@ -120,14 +127,16 @@ class UpdateOrdersToProcessing {
      * @param \Magento\Checkout\Model\Session $checkoutSession
      * @param \Magento\Sales\Api\OrderManagementInterface $orderManagement
      * @param \Magento\Sales\Model\Service\InvoiceService $invoiceService
-     * @param \Magento\Framework\DB\Transaction $transaction
      * @param \Magento\Sales\Model\Order\Email\Sender\InvoiceSender $invoiceSender
-     * @param \Magento\Sales\Model\Order\Email\Sender\OrderSender $orderSender
+     * @param \Magento\Sales\Model\Order\Email\Sender\OrderSender $OrderSender
      * @param \Magento\Catalog\Model\Session $catalogSession
      * @param \Magento\Sales\Api\Data\OrderInterface $order
      * @param \Getepay\Getepe\Model\Config $config
      * @param \Magento\Sales\Api\TransactionRepositoryInterface $transactionRepository
      * @param \Psr\Log\LoggerInterface $logger
+     * @param \Magento\Sales\Model\OrderFactory $orderFactory
+     * @param Transaction $transactionModel
+     * @param ResourceConnection $resourceConnection
      */
     public function __construct(
         \Magento\Framework\App\Action\Context $context,
@@ -138,17 +147,19 @@ class UpdateOrdersToProcessing {
         \Magento\Checkout\Model\Session $checkoutSession,
         \Magento\Sales\Api\OrderManagementInterface $orderManagement,
         \Magento\Sales\Model\Service\InvoiceService $invoiceService,
-        \Magento\Framework\DB\Transaction $transaction,
         \Magento\Sales\Model\Order\Email\Sender\InvoiceSender $invoiceSender,
-        \Magento\Sales\Model\Order\Email\Sender\OrderSender $orderSender,
+        \Magento\Sales\Model\Order\Email\Sender\OrderSender $OrderSender,
         \Magento\Catalog\Model\Session $catalogSession,
         \Magento\Sales\Api\Data\OrderInterface $order,
         \Getepay\Getepe\Model\Config $config,
         \Magento\Sales\Api\TransactionRepositoryInterface $transactionRepository,
         \Psr\Log\LoggerInterface $logger,
+        \Magento\Sales\Model\OrderFactory $orderFactory,
+        Transaction $transactionModel,
         ResourceConnection $resourceConnection
     )
     {
+        
         $this->config                   = $config;
         $getepay_mid                    = $this->config->getConfigData(Config::KEY_GETEPAY_MID);
         $terminalId                     = $this->config->getConfigData(Config::KEY_GETEPAY_TERMINAL_ID);
@@ -159,19 +170,23 @@ class UpdateOrdersToProcessing {
         $this->orderRepository          = $orderRepository;
         $this->searchCriteriaBuilder    = $searchCriteriaBuilder;
         $this->sortOrderBuilder         = $sortOrderBuilder;
-        $this->transaction              = $transaction;
+        // $this->transaction              = $transaction;
         $this->checkoutSession          = $checkoutSession;
         $this->customerSession          = $customerSession;
-
         $this->invoiceService           = $invoiceService;
         $this->invoiceSender            = $invoiceSender;
-        $this->orderSender              = $orderSender;
+        $this->_orderFactory            = $orderFactory;
+        $this->OrderSender              = $OrderSender;
         $this->catalogSession           = $catalogSession;
         $this->order                    = $order;
+        $this->transactionModel         = $transactionModel;
         $this->transactionRepository    = $transactionRepository;
         $this->resourceConnection       = $resourceConnection;
         $this->logger                   = $logger;
         $this->orderStatus              = static::STATUS_PROCESSING;
+        $this->isUpdateOrderCronV1Enabled = $this->config->isUpdateOrderCronV1Enabled();
+        $this->authorizeCommand = new AuthorizeCommand();
+        $this->captureCommand = new CaptureCommand();
 
         // $this->enableCustomPaidOrderStatus = $this->config->isCustomPaidOrderStatusEnabled();
 
@@ -181,9 +196,6 @@ class UpdateOrdersToProcessing {
         //     $this->orderStatus = $this->config->getCustomPaidOrderStatus();
         // }
 
-        // $this->authorizeCommand = new AuthorizeCommand();
-        // $this->captureCommand = new CaptureCommand();
-        $this->isUpdateOrderCronV1Enabled = $this->config->isUpdateOrderCronV1Enabled();
     }
 
     public function execute()
@@ -191,7 +203,7 @@ class UpdateOrdersToProcessing {
         $this->logger->info("Cronjob: Update Orders To Processing Cron value = " . $this->isUpdateOrderCronV1Enabled);
         if($this->isUpdateOrderCronV1Enabled === true)
         {
-            // Fetch all pending orders' increment_id from the sales_order table.
+            // Fetch all pending orders increment_id. getepay_payment_id from the sales_order table.
             $connection = $this->resourceConnection->getConnection();
             $tableName = $connection->getTableName('sales_order');
             $select = $connection->select()->from(
@@ -264,55 +276,121 @@ class UpdateOrdersToProcessing {
                 $order = $this->_orderFactory->create()->load($orderId);
                 $payment = $order->getPayment();
             
+                $order->setGetepayPaymentStatus($json->txnStatus)->save();
+
                 // Update order status
                 if($json->txnStatus == "SUCCESS"){
                     
                     $order->setState(Order::STATE_PROCESSING)->setStatus($order->getConfig()->getStateDefaultStatus(Order::STATE_PROCESSING));
 
-                        $transaction = $this->transactionRepository->getByTransactionId("-1", $payment->getId(), $order->getId());
+                    $transaction = $this->transactionRepository->getByTransactionId("-1", $payment->getId(), $order->getId());
 
-                        if ($transaction) {
-                            $transaction->setTxnId($getepayTxnId);
-                            $transaction->setAdditionalInformation("Getepay Transaction Id", $getepayTxnId);
-                            $transaction->setAdditionalInformation("status", "successful");
-                            $transaction->setIsClosed(true);
-                            $transaction->save();
-                        }
-
-                        $payment->addTransactionCommentsToOrder($transaction, "Transaction is completed successfully With GetePay");
-                        $payment->setParentTransactionId(null);
-
-                        # send new email
-                        $order->setCanSendNewEmailFlag(true);
-                        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-                        $objectManager->create('Magento\Sales\Model\OrderNotifier')->notify($order);
-                        
-                        $payment->save();
-                        $order->save();
-            
-                } 
-                elseif( $json->txnStatus == "FAILED" ) {
-                        
-                        $transaction = $this->transactionRepository->getByTransactionId("-1", $payment->getId(), $order->getId());
+                    if ($transaction) {
                         $transaction->setTxnId($getepayTxnId);
                         $transaction->setAdditionalInformation("Getepay Transaction Id", $getepayTxnId);
                         $transaction->setAdditionalInformation("status", "successful");
                         $transaction->setIsClosed(true);
                         $transaction->save();
-                        $payment->addTransactionCommentsToOrder($transaction, "The transaction is failed");
-                        $order->setState("canceled")->setStatus("canceled");
-                        $payment->setParentTransactionId(null);
-                        $payment->save();
+                    }
+
+                    $payment->addTransactionCommentsToOrder($transaction, "Transaction is completed successfully with GetePay After Payment is Pending");
+                    // $payment->setParentTransactionId(null);
+
+                    $payment->setLastTransId($getepayTxnId)
+                            ->setTransactionId($getepayTxnId)
+                            ->setIsTransactionClosed(true)
+                            ->setShouldCloseParentTransaction(true);
+
+                    $payment->setParentTransactionId($payment->getTransactionId());
+
+                        $payment->addTransactionCommentsToOrder(
+                            "$getepayTxnId",
+                            $this->authorizeCommand->execute(
+                                $payment,
+                                $order->getGrandTotal(),
+                                $order
+                            ),
+                            ""
+                        );
+                    # get Client credentials from configurations.
+                    $order_successful_email = $this->config->getConfigData(Config::KEY_GETEPAY_ORDER_EMAIL);
+
+                    if ($order_successful_email != '0') {
+                        $this->OrderSender->send($order);
+                        $order->addStatusHistoryComment(
+                            __('Notified customer about order #%1.', $orderId)
+                        )->setIsCustomerNotified(true)->save();
+                    }
+
+					// # send new email
+					// $order->setCanSendNewEmailFlag(true);
+					// $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+					// $objectManager->create('Magento\Sales\Model\OrderNotifier')->notify($order);
+
+                    // $create_invoice_after_order =  $this->config->getConfigData(Config::KEY_GETEPAY_INVOICE_AFTER_ORDER);
+                    //     if ($create_invoice_after_order != '0') {
+                    //     // Capture invoice when payment is successful
+                    //     $invoice = $this->invoiceService->prepareInvoice($order);
+                    //     $invoice->setRequestedCaptureCase(Invoice::CAPTURE_ONLINE);
+                    //     $invoice->register();
+
+                    //     // Save the invoice to the order
+                    //     $transactionn = $this->transactionModel
+                    //         ->addObject($invoice)
+                    //         ->addObject($invoice->getOrder());
+
+                    //     $transactionn->save();
+
+                    //     // Magento\Sales\Model\Order\Email\Sender\InvoiceSender
+                    //     $send_invoice_email =   $this->config->getConfigData(Config::KEY_GETEPAY_INVOICE_EMAIL);
+
+                    //     if ($send_invoice_email != '0') {
+                    //         $this->invoiceSender->send($invoice);
+                    //         $order->addStatusHistoryComment(
+                    //             __('Notified customer about invoice #%1.', $invoice->getId())
+                    //         )->setIsCustomerNotified(true)->save();
+                    //     }
+                    // }
+                    
+                    $payment->save();
+                    $order->save();
+                    $this->logger->info("Payment for $getepayTxnId was credited.");
+            
+                } 
+                elseif( $json->txnStatus == "FAILED" ) {
+                        
+                        // Get transaction by transaction ID
+                        $transaction = $this->transactionRepository->getByTransactionId(
+                            $getepayTxnId,
+                            $payment->getId(),
+                            $order->getId()
+                        );
+
+                        // Check if the transaction is found
+                        if ($transaction) {
+                            $transaction->setTxnId($getepayTxnId);
+                            $transaction->setAdditionalInformation("Getepay Transaction Id", $getepayTxnId);
+                            $transaction->setAdditionalInformation("status", "canceled");
+                            $transaction->setIsClosed(true);
+                            $transaction->save();
+                        } else {
+                            // Handle the case when the transaction is not found
+                            // Log an error or perform other actions as needed
+                            $this->logger->error("Transaction not found for order $orderId");
+                        }
+
+                         // Send notification to the customer
+                        $order->addStatusHistoryComment(
+                            __('Transaction is failed with GetePay After Payment is Pending Transaction ID: "%1"', $getepayTxnId),
+                            Order::STATE_CANCELED
+                        )->setIsCustomerNotified(true)->save();
+
+                        // Set order status to "canceled"
+                        $order->setState(Order::STATE_CANCELED)->setStatus(Order::STATE_CANCELED);
                         $order->save();
                 }
             }
         }
     }
 
-    // @codeCoverageIgnoreStart
-    // function getObjectManager()
-    // {
-    //     return \Magento\Framework\App\ObjectManager::getInstance();
-    // }
-    // @codeCoverageIgnoreEnd
 }

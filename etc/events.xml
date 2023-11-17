@@ -3,4 +3,7 @@
     <event name="sales_model_service_quote_submit_before">
         <observer name="getepay_payment_id" instance="Getepay\Getepe\Block\Main"/>
     </event>
+    <event name="sales_order_save_after">
+        <observer name="sales_order_save_after" instance="Getepay\Getepe\Observer\OrderSaveAfter"/>
+    </event>
 </config>

@@ -56,14 +56,56 @@
                         <field id="create_invoice_after_order">1</field>
                     </depends>
                 </field>
-                <!-- <field id="enable_webhook" translate="label" type="select" sortOrder="120" showInDefault="0" showInWebsite="0" showInStore="0">
+                <field id="enable_webhook" translate="label" type="select" sortOrder="120" showInDefault="0" showInWebsite="0" showInStore="0">
                     <label>Webhook Enabled</label>
                     <comment>** {{base_url}} Copy the Webhook Url from below **</comment>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <frontend_model>Getepay\Getepe\Model\WebhookUrl</frontend_model>
                     <validate>required-entry</validate>
                     <config_path>payment/getepay/enable_webhook</config_path>
-                </field> -->
+                </field>
+                <field id="webhook_secret" translate="label" type="text" sortOrder="121" showInDefault="0" showInWebsite="0" showInStore="0">
+                    <label>Webhook Secret</label>
+                    <comment>This field has to match the one set in dashboard.getepay.in/webhooks</comment>
+                    <config_path>payment/getepay/webhook_secret</config_path>
+                    <!-- <frontend_model>Getepay\Getepe\Model\FormFieldTrack</frontend_model> -->
+                    <validate>required-entry</validate>
+                    <depends>
+                        <field id="enable_webhook">1</field>
+                    </depends>
+                </field>
+                <field id="webhook_events" translate="label" type="multiselect" sortOrder="122" showInDefault="0" showInWebsite="0" showInStore="0">
+                    <label>Webhook Events</label>
+                    <source_model>Getepay\Getepe\Model\WebhookEvents</source_model>
+                    <comment>List of Webhook Events that needs to be subscribed.</comment>
+                    <config_path>payment/getepay/webhook_events</config_path>
+                    <!-- <frontend_model>Getepay\Getepe\Model\FormFieldTrack</frontend_model> -->
+                    <validate>required-entry</validate>
+                    <depends> 
+                        <field id="enable_webhook">1</field>
+                    </depends>
+                </field>
+                <field id="allowspecific" translate="label" type="allowspecific" sortOrder="123" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Payment from Applicable Countries</label>
+                    <source_model>Magento\Payment\Model\Config\Source\Allspecificcountries</source_model>
+                    <!-- <frontend_model>Getepay\Getepe\Model\FormFieldTrack</frontend_model> -->
+                    <config_path>payment/getepay/allowspecific</config_path>
+                </field>
+                <field id="specificcountry" translate="label" type="multiselect" sortOrder="124" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Payment from Specific Countries</label>
+                    <source_model>Magento\Directory\Model\Config\Source\Country</source_model>
+                    <!-- <frontend_model>Getepay\Getepe\Model\FormFieldTrack</frontend_model> -->
+                    <can_be_empty>1</can_be_empty>
+                    <config_path>payment/getepay/specificcountry</config_path>
+                </field>
+                <field id="disable_upgrade_notice" translate="label" type="select" sortOrder="125" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Disable Getepay Upgrade Notice</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <config_path>payment/getepay/disable_upgrade_notice</config_path>
+                    <validate>required-entry</validate>
+                    <comment>**Required ( It will display the upgrade notification, If Getepay new release available. ) **</comment>
+                </field>
+
                 <field id="enable_pending_orders_cron" translate="label" type="select" sortOrder="130" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Pending Orders Cron Enabled</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
@@ -74,13 +116,13 @@
 
                 <field id="pending_orders_timeout" translate="label" type="text" sortOrder="140" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Pending Orders Timeout</label>
-                    <comment>Set timeout in minutes, (default: 30 minutes). Timeout can be updated between range of 20 minutes to 43200 minutes (30 days). This will enable cron for moving pending orders to Cancel status for given timeout.</comment>
+                    <comment>Set timeout in minutes, (default: 2880 minutes). Timeout can be updated between range of 2880 minutes (48 Hrs) to 43200 minutes (30 days). This will enable cron for moving pending orders to Cancel status for given timeout.</comment>
                     <config_path>payment/getepay/pending_orders_timeout</config_path>
                     <depends>
                         <field id="enable_pending_orders_cron">1</field>
                     </depends>
                     <frontend_model>Getepay\Getepe\Model\FormFieldTrack</frontend_model>
-                    <validate>required-entry validate-digits validate-not-negative-number validate-digits-range digits-range-20-43200</validate>
+                    <validate>required-entry validate-digits validate-not-negative-number validate-digits-range digits-range-2880-43200</validate>
                 </field>
 
                 <!-- <field id="enable_reset_cart_cron" translate="label" type="select" sortOrder="13" showInDefault="1" showInWebsite="0" showInStore="0">
@@ -102,7 +144,7 @@
                 </field> -->
 
                 <field id="enable_update_order_cron_v1" translate="label" type="select" sortOrder="150" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Enable Update Order Cron V1</label>
+                    <label>Enable Update Order Cron</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <config_path>payment/getepay/enable_update_order_cron_v1</config_path>
 					<comment>Select "Yes" to Enable cron for moving pending status orders to Processing or Cancel status after payment success but order status is pending</comment>

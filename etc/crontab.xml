@@ -7,7 +7,7 @@
         <job name="getepay_update_order_to_processing" instance="Getepay\Getepe\Cron\UpdateOrdersToProcessing" method="execute">
             <schedule>*/5 * * * *</schedule>
         </job>
-        <job name="getepay_update_order_to_processing_v1" instance="Getepay\Getepe\Cron\UpdateOrdersToProcessingV1" method="execute">
+        <job name="getepay_update_order_to_processing_v2" instance="Getepay\Getepe\Cron\UpdateOrdersToProcessingV2" method="execute">
             <schedule>*/5 * * * *</schedule>
         </job>
      </group>
