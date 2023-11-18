@@ -152,6 +152,7 @@ class Index extends Action implements CsrfAwareActionInterface
 				$ciphertext_raw = $ciphertext_raw = hex2bin($response);
 				$original_plaintext = openssl_decrypt($ciphertext_raw,  "AES-256-CBC", $key, $options=OPENSSL_RAW_DATA, $iv);
 				$json = json_decode(json_decode($original_plaintext,true),true);
+				$this->logger->info("Getepay Payment Response for creating order ".print_r($json,true));
 				$orderId = $json["merchantOrderNo"];
 				$getepayTxnId = $json["getepayTxnId"];
                 $txnStatus = $json["txnStatus"];
@@ -164,7 +165,7 @@ class Index extends Action implements CsrfAwareActionInterface
 
 				if ($txnStatus == "SUCCESS") {
                     $order->setState(Order::STATE_PROCESSING)->setStatus($order->getConfig()->getStateDefaultStatus(Order::STATE_PROCESSING));
-                    //$order->setState('pending')->setStatus('pending');
+                    //$order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
                     $transaction = $this->transactionRepository->getByTransactionId("-1", $payment->getId(), $order->getId());
 
                     if ($transaction) {
@@ -215,6 +216,7 @@ class Index extends Action implements CsrfAwareActionInterface
                         // Capture invoice when payment is successful
                         $invoice = $this->invoiceService->prepareInvoice($order);
                         $invoice->setRequestedCaptureCase(Invoice::CAPTURE_ONLINE);
+                        $invoice->setState(Invoice::STATE_PAID);
                         $invoice->register();
 
                         // Save the invoice to the order
@@ -235,9 +237,10 @@ class Index extends Action implements CsrfAwareActionInterface
                         }
                     }
 					
+                    $order->setTotalPaid($order->getGrandTotal());
                     $payment->save();
                     $order->save();
-                    $this->logger->info("Payment for $getepayTxnId was credited.");       
+                    $this->logger->info("Payment for Getepay Txn ID: $getepayTxnId was credited.");
 
                     // Check if the order exists and the customer ID is set
                     if ($order->getId() && $order->getCustomerId()) {
@@ -250,7 +253,6 @@ class Index extends Action implements CsrfAwareActionInterface
                         if ($customerModel->getId()) {
                             $customerSession->setCustomerAsLoggedIn($customerModel);
                             $customerSession->regenerateId();
-                            //echo 'Login';
                         }
                     } 
                     
@@ -260,16 +262,18 @@ class Index extends Action implements CsrfAwareActionInterface
                     $this->_checkoutSession->setLastRealOrderId($order->getIncrementId());
                     $this->_checkoutSession->setLastOrderStatus($order->getStatus());
 
+                    $this->logger->info("The User was Redirected to Magento Order Success Page");
                     return $this->resultRedirectFactory->create()->setPath('checkout/onepage/success', ['_secure' => true]);
                 } 
                 elseif ($txnStatus == "FAILED") {
+
+                    $this->logger->info("Payment for Getepay Txn ID: $getepayTxnId was failed.");
                     $transaction = $this->transactionRepository->getByTransactionId("-1", $payment->getId(), $order->getId());
                     $transaction->setTxnId($getepayTxnId);
                     $transaction->setAdditionalInformation("Getepay Transaction Id", $getepayTxnId);
-                    $transaction->setAdditionalInformation("status", "successful");
+                    $transaction->setAdditionalInformation("status", "canceled");
                     $transaction->setIsClosed(1);
                     $transaction->save();
-                    //$payment->addTransactionCommentsToOrder($transaction, "The transaction is failed");
 
                     try {
                         $items = $order->getItemsCollection();
@@ -314,6 +318,7 @@ class Index extends Action implements CsrfAwareActionInterface
                     $this->_checkoutSession->setLastOrderStatus($order->getStatus());
 
                     $this->messageManager->addErrorMessage(__('Payment failed. Please try again.'));
+                    $this->logger->info("The User was Redirected to Magento Order Failure Page");
                     return $this->resultRedirectFactory->create()->setPath('checkout/onepage/failure', ['_secure' => true]);
 					
                 } 
@@ -329,7 +334,6 @@ class Index extends Action implements CsrfAwareActionInterface
                         if ($customerModel->getId()) {
                             $customerSession->setCustomerAsLoggedIn($customerModel);
                             $customerSession->regenerateId();
-                            //echo 'Login';
                         }
                     } 
 

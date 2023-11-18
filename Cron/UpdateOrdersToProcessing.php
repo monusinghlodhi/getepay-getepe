@@ -351,7 +351,8 @@ class UpdateOrdersToProcessing {
                     //         )->setIsCustomerNotified(true)->save();
                     //     }
                     // }
-                    
+
+                    $order->setTotalPaid($order->getGrandTotal());
                     $payment->save();
                     $order->save();
                     $this->logger->info("Payment for $getepayTxnId was credited.");

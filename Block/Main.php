@@ -59,7 +59,7 @@ class Main extends  \Magento\Framework\View\Element\Template
 	{
 		//$method_data = array();
 		$orderId = $this->checkoutSession->getLastOrderId();
-		$this->logger->info('Creating Order for orderId $orderId');
+		$this->logger->info("Creating Order for orderId $orderId");
 		$order = $this->orderFactory->create()->load($orderId);
 		if ($order)
 		{
@@ -81,7 +81,7 @@ class Main extends  \Magento\Framework\View\Element\Template
 				$terminalId = $this->config->getValue("payment/getepay/terminalId",$storeScope);
 				$getepay_key = $this->config->getValue("payment/getepay/getepay_key",$storeScope);
 				$getepay_iv = $this->config->getValue("payment/getepay/getepay_iv",$storeScope);
-				$this->logger->info("Request URL: $req_url | Getepay MID : $getepay_mid | Getepay Key: $getepay_key | Getepay IV: $getepay_iv | Order ID: $orderId");				
+				$this->logger->info("Request URL: $req_url | Getepay MID : $getepay_mid | Terminal ID : $terminalId | Getepay Key: $getepay_key | Getepay IV: $getepay_iv | Order ID: $orderId");				
 				
 				$transaction_id = time() ."-". $order->getRealOrderId();
 				$phone = $billing->getTelephone();
@@ -91,8 +91,6 @@ class Main extends  \Magento\Framework\View\Element\Template
 				$amount = $order->getGrandTotal();
 				$currency = "INR";
 				$redirect_url = $this->urlBuilder->getUrl('getepay/response', ['_secure' => true]);
-				//$this->logger->info("Date sent for creating order ".print_r($api_data,true));
-
 				$getGetepayReqUrl = $req_url;
 				//$getGetepayReqUrl = "https://pay1.getepay.in:8443/getepayPortal/pg/generateInvoice";
 				$getGetepayMId = $getepay_mid;
@@ -181,12 +179,8 @@ class Main extends  \Magento\Framework\View\Element\Template
 				$ciphertext_raw = hex2bin($jsonResult);
 				$original_plaintext = openssl_decrypt($ciphertext_raw,  "AES-256-CBC", $key, $options=OPENSSL_RAW_DATA, $iv);
 				$json = json_decode($original_plaintext);
-				
-				//echo "<pre/>"; print_r($json);
 				$paymentId = $json->paymentId;
-
 				$payment = $order->getPayment();
-			
 				$payment->setTransactionId("-1");
 				$payment->setAdditionalInformation(  
 					[\Magento\Sales\Model\Order\Payment\Transaction::RAW_DETAILS => array("Transaction is yet to complete")]
@@ -197,7 +191,8 @@ class Main extends  \Magento\Framework\View\Element\Template
 					$trn,
 				"The User was Redirected to Getepay for Payment."
 				);
-
+				$this->logger->info("Date sent for creating order ".print_r($json,true));
+				$this->logger->info("The User was Redirected to Getepay for Payment.");
 				$payment->setParentTransactionId($paymentId);
 
 				// Save Getepay Payment ID to the order
@@ -209,14 +204,10 @@ class Main extends  \Magento\Framework\View\Element\Template
 
 				if(isset($pgUrl))
 				{
-					// $this->setAction($pgUrl);
 					$this->checkoutSession->setGetepayPaymentId($paymentId);
-					// $this->checkoutSession->setLastSuccessQuoteId($order->getQouteId());
 					$this->checkoutSession->setLastOrderId($orderId);
 					$this->checkoutSession->setLastRealOrder($orderId);
 					$this->checkoutSession->setLastSuccessQuoteId($orderId);
-					// header("Location: $pgUrl");	
-					// return;
 					$this->setAction($pgUrl);
 					$this->checkoutSession->setPaymentRequestId($orderId);	
 					return;
@@ -225,11 +216,9 @@ class Main extends  \Magento\Framework\View\Element\Template
 		}
 		else
 		{
-			$this->logger->info('Order with ID $orderId not found. Quitting :-(');
+			$this->logger->info(" Order with ID $orderId not found. Quitting :-( ");
 		}
-		
-		
-		
+
 			// $showPhoneBox = false;
 			// if(isset($method_data['errors']) and is_array($method_data['errors']))
 			// {
