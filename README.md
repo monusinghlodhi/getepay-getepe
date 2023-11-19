@@ -23,6 +23,7 @@ bin/magento cron:install
 8. On the Magento admin dashboard, open Getepay payment method settings and click on the Save Config button.
 
 **Note**: If you see this message highlighted in yellow (One or more of the Cache Types are invalidated: Page Cache. Please go to Cache Management and refresh cache types.) on top of the Admin page, please follow the steps mentioned and refresh the cache.
+
 9. Run `bin/magento cache:flush` once again.
 
 ### **OR**
