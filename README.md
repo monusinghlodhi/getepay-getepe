@@ -66,9 +66,7 @@ bin/magento cron:install
 
   - **Enabled:** Mark this as "Yes" to enable this plugin.
  
-  - **Title:** Test to be shown to user during checkout. For example: "Pay using GetePay"
-
-  - **Checkout Label:** This is the label users will see during checkout, its default value is "Pay using Getepay". You can change it to something more generic like "Pay using Credit/Debit Card or Online Banking".
+  - **Title:** Test to be shown to user during checkout. For example: "Pay using GetePay".
 
 ## Uninstall OR Rollback to older versions
 To rollback, you will be required to uninstall existing version and install a new version again. Following are actions used for rollback & reinstall:
